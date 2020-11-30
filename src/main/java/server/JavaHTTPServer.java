@@ -72,7 +72,6 @@ public class JavaHTTPServer implements Runnable{
                 String method = parse.nextToken().toUpperCase(); // we get the HTTP method of the client
                 // we get file requested
                 fileRequested = parse.nextToken().toLowerCase();               
-                if(fileRequested.equals("/puntivendita.xml/")) fileRequested = "/puntivendita.xml"; //unknown error
                 System.out.println(fileRequested + " ecco il file richiesto");
                 
                 // we support only GET and HEAD methods, we check
@@ -104,12 +103,12 @@ public class JavaHTTPServer implements Runnable{
                     // GET or HEAD method
                     if (fileRequested.endsWith("/")) {
                         fileRequested += DEFAULT_FILE;
-                    }else if(fileRequested.equals("/" + XML)){
+                    }else if(fileRequested.equalsIgnoreCase("/" + XML)){
                         System.out.println("File xml richiesto");
                         ObjectMapper objMapper = new ObjectMapper(); 
                         PuntiVendita pv = objMapper.readValue(new File(WEB_ROOT + "/" + JSON), PuntiVendita.class); //deserialize json to java
                         XmlMapper xmlMapper = new XmlMapper();
-                        xmlMapper.writeValue(new File(WEB_ROOT + "/" + XML),pv); //serialize java to xml
+                        xmlMapper.writeValue(new File(WEB_ROOT + "/" + XML), pv); //serialize java to xml
                         File file = new File(WEB_ROOT + "/" + XML); //save data on file
                     }
 
@@ -126,6 +125,7 @@ public class JavaHTTPServer implements Runnable{
                         out.println("Date: " + new Date());
                         out.println("Content-type: " + content);
                         out.println("Content-length: " + fileLength);
+                        out.println("Cache-Control: " + "no-store");
                         out.println(); // blank line between headers and content, very important !
                         out.flush(); // flush character output stream buffer
 
