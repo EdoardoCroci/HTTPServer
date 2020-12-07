@@ -1,4 +1,4 @@
-package server;
+package Resources;
 
 import java.util.ArrayList;
 

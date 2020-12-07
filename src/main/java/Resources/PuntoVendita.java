@@ -1,4 +1,4 @@
-package server;
+package Resources;
 
 public class PuntoVendita {
     private long idPuntoVendita, cap, idEsercente;

@@ -1,10 +1,12 @@
 package server;
 
+import Resources.PuntiVendita;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import SQL.*;
 
 public class JavaHTTPServer implements Runnable{ 	
 	static final File WEB_ROOT = new File("./files");
@@ -12,16 +14,14 @@ public class JavaHTTPServer implements Runnable{
 	static final String FILE_NOT_FOUND = "404.html";
 	static final String METHOD_NOT_SUPPORTED = "not_supported.html";
         static final String FILE_REDIRECT = "301.html";
-        static final String JSON= "puntiVendita.json";
-        static final String XML = "puntiVendita.xml";
-	// port to listen connection
+        static final String DB = "HTTPServer";
 	static final int PORT = 8080;
 	
-	// verbose mode
-	static final boolean verbose = true;
-	
-	// Client Connection via Socket Class
-	private Socket connect;      
+	static final boolean VERBOSE = true;
+	File file;
+	private Socket connect;           
+        
+        private JavaMySQL sql = new JavaMySQL();
 	
 	public JavaHTTPServer(Socket c) {
             connect = c;
@@ -32,15 +32,13 @@ public class JavaHTTPServer implements Runnable{
                     ServerSocket serverConnect = new ServerSocket(PORT);
                     System.out.println("Server started.\n Listening for connections on port : " + PORT + " ...\n");
 
-                    // we listen until user halts server execution
                     while (true) {
                         JavaHTTPServer myServer = new JavaHTTPServer(serverConnect.accept());
 
-                        if (verbose) {
+                        if (VERBOSE) {
                             System.out.println("Connecton opened. (" + new Date() + ")");
                         }
 
-                        // create dedicated thread to manage the client connection
                         Thread thread = new Thread(myServer);
                         thread.start();
                     }
@@ -71,12 +69,13 @@ public class JavaHTTPServer implements Runnable{
                 StringTokenizer parse = new StringTokenizer(input);
                 String method = parse.nextToken().toUpperCase(); // we get the HTTP method of the client
                 // we get file requested
-                fileRequested = parse.nextToken().toLowerCase();               
-                System.out.println(fileRequested + " ecco il file richiesto");
+                fileRequested = parse.nextToken();    
+                
+                System.out.println("File richiesto:" + fileRequested);
                 
                 // we support only GET and HEAD methods, we check
                 if (!method.equals("GET")  &&  !method.equals("HEAD")) {
-                    if (verbose) {
+                    if (VERBOSE) {
                         System.out.println("501 Not Implemented : " + method + " method.");
                     }
 
@@ -103,16 +102,29 @@ public class JavaHTTPServer implements Runnable{
                     // GET or HEAD method
                     if (fileRequested.endsWith("/")) {
                         fileRequested += DEFAULT_FILE;
-                    }else if(fileRequested.equalsIgnoreCase("/" + XML)){
+                    }else if(fileRequested.equals("/puntivendita.xml")){
                         System.out.println("File xml richiesto");
                         ObjectMapper objMapper = new ObjectMapper(); 
-                        PuntiVendita pv = objMapper.readValue(new File(WEB_ROOT + "/" + JSON), PuntiVendita.class); //deserialize json to java
+                        PuntiVendita pv = objMapper.readValue(new File(WEB_ROOT + "/puntivendita.json"), PuntiVendita.class); //deserialize json to java
                         XmlMapper xmlMapper = new XmlMapper();
-                        xmlMapper.writeValue(new File(WEB_ROOT + "/" + XML), pv); //serialize java to xml
-                        File file = new File(WEB_ROOT + "/" + XML); //save data on file
+                        xmlMapper.writeValue(new File(WEB_ROOT + "/puntivendita.xml"), pv); //serialize java to xml
+                        file = new File(WEB_ROOT + "/puntivendita.xml"); //save data on file
+                    }else if(fileRequested.equals("/" + DB + ".json")) {
+                        System.out.println("Database richiesto (json)"); 
+                        
+                        ObjectMapper objMapper = new ObjectMapper();
+                        objMapper.writeValue(new File(WEB_ROOT + fileRequested), sql.getResult()); //serialize java to json
+                        file = new File(WEB_ROOT + fileRequested);
+                        System.out.println("Serializzato");
+                    }else if(fileRequested.equals("/" + DB + ".xml")) {
+                        System.out.println("Database richiesto (xml)");
+                        
+                        XmlMapper xmlMapper = new XmlMapper();
+                        xmlMapper.writeValue(new File(WEB_ROOT + fileRequested), sql.getResult()); //serialize java to xml                        
+                        file = new File(WEB_ROOT + fileRequested);                      
+                        System.out.println("Serializzato");
                     }
-
-                    File file = new File(WEB_ROOT, fileRequested);
+                    
                     int fileLength = (int) file.length();
                     String content = getContentType(fileRequested);
 
@@ -133,7 +145,7 @@ public class JavaHTTPServer implements Runnable{
                         dataOut.flush();
                     }
 
-                    if (verbose) {
+                    if (VERBOSE) {
                         System.out.println("File " + fileRequested + " of type " + content + " returned");
                     }
 
@@ -158,12 +170,10 @@ public class JavaHTTPServer implements Runnable{
                 System.err.println("Error closing stream : " + e.getMessage());
             } 
 
-            if (verbose) {
+            if (VERBOSE) {
                 System.out.println("Connection closed.\n");
             }
-        }
-		
-		
+            }			
 	}
 	
 	private byte[] readFileData(File file, int fileLength) throws IOException {
@@ -207,7 +217,7 @@ public class JavaHTTPServer implements Runnable{
                 dataOut.write(fileData, 0, fileLength);
                 dataOut.flush();
 
-                if (verbose) {
+                if (VERBOSE) {
                     System.out.println("File " + fileRequested + " not found");
                 }
             }else {              
@@ -227,7 +237,7 @@ public class JavaHTTPServer implements Runnable{
                 dataOut.write(fileData, 0, fileLength);
                 dataOut.flush();
                 
-                if (verbose) {
+                if (VERBOSE) {
                     System.out.println("Page " + fileRequested + " redirect");
                 }
             }                      
