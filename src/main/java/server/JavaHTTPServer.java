@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import SQL.*;
+import Resources.*;
 
 public class JavaHTTPServer implements Runnable{ 	
 	static final File WEB_ROOT = new File("./files");
@@ -15,14 +16,14 @@ public class JavaHTTPServer implements Runnable{
 	static final String METHOD_NOT_SUPPORTED = "not_supported.html";
         static final String FILE_REDIRECT = "301.html";
         static final String DB = "HTTPServer";
-	static final int PORT = 8080;
+	static final int PORT = 3000;
 	
 	static final boolean VERBOSE = true;
-	File file;
+	private String fileString;
 	private Socket connect;           
-        
+        private ArrayList<Persona> persone;
         private JavaMySQL sql = new JavaMySQL();
-	
+        
 	public JavaHTTPServer(Socket c) {
             connect = c;
 	}
@@ -69,9 +70,8 @@ public class JavaHTTPServer implements Runnable{
                 StringTokenizer parse = new StringTokenizer(input);
                 String method = parse.nextToken().toUpperCase(); // we get the HTTP method of the client
                 // we get file requested
-                fileRequested = parse.nextToken();    
-                
-                System.out.println("File richiesto:" + fileRequested);
+                fileRequested = parse.nextToken();                  
+                persone = sql.getResult();
                 
                 // we support only GET and HEAD methods, we check
                 if (!method.equals("GET")  &&  !method.equals("HEAD")) {
@@ -103,34 +103,24 @@ public class JavaHTTPServer implements Runnable{
                     if (fileRequested.endsWith("/")) {
                         fileRequested += DEFAULT_FILE;
                     }else if(fileRequested.equals("/puntivendita.xml")){
-                        System.out.println("File xml richiesto");
                         ObjectMapper objMapper = new ObjectMapper(); 
                         PuntiVendita pv = objMapper.readValue(new File(WEB_ROOT + "/puntivendita.json"), PuntiVendita.class); //deserialize json to java
                         XmlMapper xmlMapper = new XmlMapper();
-                        xmlMapper.writeValue(new File(WEB_ROOT + "/puntivendita.xml"), pv); //serialize java to xml
-                        file = new File(WEB_ROOT + "/puntivendita.xml"); //save data on file
-                    }else if(fileRequested.equals("/" + DB + ".json")) {
-                        System.out.println("Database richiesto (json)"); 
-                        
+                        fileString = xmlMapper.writeValueAsString(pv);
+                    }else if(fileRequested.equals("/" + DB + ".json")) {                  
                         ObjectMapper objMapper = new ObjectMapper();
-                        objMapper.writeValue(new File(WEB_ROOT + fileRequested), sql.getResult()); //serialize java to json
-                        file = new File(WEB_ROOT + fileRequested);
+                        fileString = objMapper.writeValueAsString(persone);
                         System.out.println("Serializzato");
-                    }else if(fileRequested.equals("/" + DB + ".xml")) {
-                        System.out.println("Database richiesto (xml)");
-                        
+                    }else if(fileRequested.equals("/" + DB + ".xml")) {                     
                         XmlMapper xmlMapper = new XmlMapper();
-                        xmlMapper.writeValue(new File(WEB_ROOT + fileRequested), sql.getResult()); //serialize java to xml                        
-                        file = new File(WEB_ROOT + fileRequested);                      
+                        fileString = xmlMapper.writeValueAsString(persone);
                         System.out.println("Serializzato");
                     }
                     
-                    int fileLength = (int) file.length();
+                    int fileLength = fileString.length();
                     String content = getContentType(fileRequested);
 
                     if (method.equals("GET")) { // GET method so we return content
-                        byte[] fileData = readFileData(file, fileLength);
-
                         // send HTTP Headers
                         out.println("HTTP/1.1 200 OK");
                         out.println("Server: Java HTTP Server from SSaurel : 1.0");
@@ -141,7 +131,7 @@ public class JavaHTTPServer implements Runnable{
                         out.println(); // blank line between headers and content, very important !
                         out.flush(); // flush character output stream buffer
 
-                        dataOut.write(fileData, 0, fileLength);
+                        dataOut.write(fileString.getBytes(), 0, fileLength);
                         dataOut.flush();
                     }
 

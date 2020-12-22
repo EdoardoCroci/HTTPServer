@@ -6,6 +6,8 @@ import Resources.Persona;
 import Resources.Persone;
 
 public class JavaMySQL {  
+    Persone persone = new Persone();
+    
     public ArrayList<Persona> getResult() {
         try {
             //create my mysql database connection
@@ -22,11 +24,11 @@ public class JavaMySQL {
                 String nome = rs.getString("nome");
                 String cognome = rs.getString("cognome");
                 Persona p = new Persona(nome, cognome);
-                Persone.addPersona(p);
+                persone.addPersona(p);
             }
         }catch(ClassNotFoundException | SQLException ex) {
             ex.toString();
         } 
-        return Persone.getArrayPersone();
+        return persone.getArrayPersone();
     }
 }
